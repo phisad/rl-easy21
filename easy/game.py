@@ -28,7 +28,7 @@ class Easy21(gym.Env):
     """
 
     def __init__(self):
-        self.action_space = spaces.Discrete(2)  # (0) NOOP; (1) HIT; (2) STICK
+        self.action_space = spaces.Discrete(2)  # (0) STICK; (1) HIT
         self.observation_space = spaces.MultiDiscrete([22, 22])  # only for documentation; can be negative; (0) NOOP
         self.reward_range = (-1, 1)
         self.random_value = None  # initialized in self.seed()
@@ -63,10 +63,10 @@ class Easy21(gym.Env):
             raise Exception("Unknown game participant: " + participant)
 
     def __take_card(self, only_black=False):
-        card_value = self.random_value.randint(11)  # high exclusive
+        card_value = self.random_value.randint(1, 11)  # high exclusive
         if only_black:
             return card_value
-        if self.random_value.randint(101) <= 66:
+        if self.random_value.randint(100) < 66:  # zero-based, high exclusive
             return card_value
         return -1 * card_value
 
@@ -86,7 +86,7 @@ class Easy21(gym.Env):
             done (bool): whether the episode has ended, in which case further step() calls will return undefined results
             info (dict): contains auxiliary diagnostic information (helpful for debugging, and sometimes learning)
         """
-        if action == 2:  # stick
+        if action == 0:  # stick
             # perform dealer actions
             while not self.__dealer_sticks():
                 self.__take_card_by("dealer")
