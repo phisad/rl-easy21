@@ -1,6 +1,6 @@
 import unittest
 
-from easy.monte import MonteCarloPolicyEvaluation, Stick20ActionPolicy, RandomActionPolicy
+from easy.monte import MonteCarloPolicyEvaluation, Stick20ActionPolicy, RandomActionPolicy, EpsilonGreedyActionPolicy
 from easy.game import Easy21
 
 from mpl_toolkits.mplot3d import axes3d
@@ -10,6 +10,17 @@ import matplotlib.ticker as plticker
 
 
 class MyTestCase(unittest.TestCase):
+
+    def test_epsilon_greedy_policy(self):
+        game = Easy21()
+        policy = EpsilonGreedyActionPolicy(game.observation_space, game.action_space)
+        self.__learn_and_plot(game, policy, time_steps=1_000_000)
+
+    def test_epsilon_greedy_policy(self):
+        game = Easy21()
+        policy = EpsilonGreedyActionPolicy(game.observation_space, game.action_space)
+        for time_steps in [1_000, 10_000, 100_000]:
+            self.__learn_and_plot(game, policy, time_steps)
 
     def test_random_policy(self):
         game = Easy21()
