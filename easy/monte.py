@@ -70,8 +70,21 @@ class MonteCarloPolicyEvaluation(object):
                     break
             # Still we apply the same final episode reward to all observations in this episode
             self.__incremental_update(episode_observations, reward)
-            self.policy.update(episode_observations_and_actions, reward)
+            self.__policy_update(episode_observations_and_actions, reward)
         return self
+
+    def __policy_update(self, observations_and_actions, reward):
+        for (obs, action) in observations_and_actions:
+            # N(s,a) <- N(s,a) + 1
+            self.policy.N_sa[(obs, action)] += 1
+            self.policy.N_s[obs] += 1
+            # Q(s,a) <- Q(s,a) + [G - Q(s,a)] / N(s,a)
+            # We use a dict-to-list of actions for easier step-processing
+            if action in self.policy.Q[obs]:
+                self.policy.Q[obs][action] += np.true_divide(reward - self.policy.Q[obs][action],
+                                                             self.policy.N_sa[(obs, action)])
+            else:
+                self.policy.Q[obs][action] = reward
 
     def __incremental_update(self, epoch_observations, reward):
         """

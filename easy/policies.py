@@ -1,5 +1,6 @@
 import collections
 from stable_baselines.common import policies
+import numpy as np
 
 
 class EpsilonGreedyActionPolicy(policies.BasePolicy):
@@ -36,18 +37,6 @@ class EpsilonGreedyActionPolicy(policies.BasePolicy):
 
     def proba_step(self, obs, state=None, mask=None):
         raise NotImplementedError()
-
-    def update(self, observations_and_actions, reward):
-        for (obs, action) in observations_and_actions:
-            # N(s,a) <- N(s,a) + 1
-            self.N_sa[(obs, action)] += 1
-            self.N_s[obs] += 1
-            # Q(s,a) <- Q(s,a) + [G - Q(s,a)] / N(s,a)
-            # We use a dict-to-list of actions for easier step-processing
-            if action in self.Q[obs]:
-                self.Q[obs][action] += np.true_divide(reward - self.Q[obs][action], self.N_sa[(obs, action)])
-            else:
-                self.Q[obs][action] = reward
 
 
 class Stick20ActionPolicy(policies.BasePolicy):
