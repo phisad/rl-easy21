@@ -15,8 +15,11 @@
           The dealer can have any value of 1-10 initially. The player should have a score of 1-21.
           The value function now defines in each state "how well" the player is doing in the game.
     """
+import math
+
 import numpy as np
 import collections
+import pickle
 
 
 class MonteCarloPolicyEvaluation(object):
@@ -48,18 +51,22 @@ class MonteCarloPolicyEvaluation(object):
             :return: the estimated value function
         """
         for episode in range(total_timesteps):
+            if episode % 100_000 == 0:
+                print("Episode: " + str(episode))
             episode_observations = collections.defaultdict(int)
             episode_observations_and_actions = collections.defaultdict(int)
-            observation = self.env.reset()
-            episode_observations[observation] += 1
+            initial_observation = self.env.reset()
+            episode_observations[initial_observation] += 1
             # We need the trajectory over the whole episode to count all the state visits.
+            current_observation = initial_observation
             while True:  # for every time-step, do
                 # self.env.render()
-                selected_action = self.policy.step(observation, self.Q)
-                observation, reward, done, _ = self.env.step(action=selected_action)
-                episode_observations[observation] += 1
-                episode_observations_and_actions[(observation, selected_action)] += 1
+                selected_action = self.policy.step(current_observation, self.Q)
+                episode_observations[current_observation] += 1
+                episode_observations_and_actions[(current_observation, selected_action)] += 1
+                current_observation, reward, done, _ = self.env.step(action=selected_action)
                 if done:
+                    # We ignore the ending scores from the dealer and player
                     break
             # Still we apply the same final episode reward to all observations in this episode
             self.__policy_update(episode_observations_and_actions, reward)
@@ -72,12 +79,64 @@ class MonteCarloPolicyEvaluation(object):
             # alpha_t = 1/N(s_t; a_t)
             alpha = np.true_divide(1, self.N_sa[(obs, action)])
             # Q(s,a) <- Q(s,a) + alpha * [R - Q(s,a)]
-            self.Q[obs][action] += alpha * (reward - self.q_value(obs, action))
+            q = self.q_value(obs, action)
+            self.Q[obs][action] += alpha * (reward - q)
 
     def q_value(self, observation, action):
-        if observation not in self.Q:
-            return 0.0
         # We use a dict-to-list of actions for easier step-processing
         if action not in self.Q[observation]:
-            return 0.0  # We initialize everything with zero
+            self.Q[observation][action] = 0.0  # We initialize everything with zero
         return self.Q[observation][action]
+
+    def q_value_max(self, observation):
+        """
+        :return: the max action-value for the given observation
+        """
+        if observation not in self.Q:
+            return 0.0
+        actions = self.Q[observation]
+        max_value = -math.inf
+        for action in actions:
+            action_value = self.Q[observation][action]
+            if action_value == 0.0:
+                continue
+            if action_value > max_value:
+                max_value = action_value
+        return max_value
+
+    def q_max(self, observation):
+        if observation not in self.Q:
+            return -1
+        actions = self.Q[observation]
+        max_value = -math.inf
+        max_action = -1
+        for action in actions:
+            action_value = self.Q[observation][action]
+            if action_value == 0.0:
+                continue
+            if action_value > max_value:
+                max_value = action_value
+                max_action = action
+        return max_action
+
+    def q_values(self):
+        by_action = collections.defaultdict(list)
+        for obs, actions in self.Q.items():
+            for action in actions:
+                by_action[action].append(obs)
+        for action in by_action:
+            print("Action: " + str(action))
+            for obs in by_action[action]:
+                print(obs)
+            print()
+
+    def save(self, name):
+        file_path = 'mc_%s.pkl' % name
+        with open(file_path, 'wb') as f:
+            pickle.dump(self, f, pickle.HIGHEST_PROTOCOL)
+
+    @staticmethod
+    def load(name):
+        file_path = 'mc_%s.pkl' % name
+        with open(file_path, 'rb') as f:
+            return pickle.load(f)
