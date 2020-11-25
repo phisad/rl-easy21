@@ -34,20 +34,13 @@ class MonteCarloPolicyEvaluation(object):
         self.env = env
         self.policy = policy
         self.action_space = env.action_space
-        self.value_fn = collections.defaultdict(float)  # state -> estimated reward
-        self.state_returns = collections.defaultdict(int)  # accumulate state reward
-        self.state_visits = collections.defaultdict(int)  # accumulate state visits
+        # Hold estimated total return for state-action pairs
+        self.Q = collections.defaultdict(dict)
+        self.N_sa = collections.defaultdict(int)
 
     def learn(self, total_timesteps):
         """
             We sample at every episode from the game.
-
-            What is the policy here though?
-
-            Terms:
-                G_t is the total reward over all previous timesteps (return).
-                The value function v(s) is the 'expected' G_t (return) given a state (s) at t.
-                Monte Carlo uses 'empirical mean' return instead of 'expected' return.
 
             Hint: This method might invoke a Runner(AbstractEnvRunner) to perform learning.
 
@@ -62,54 +55,29 @@ class MonteCarloPolicyEvaluation(object):
             # We need the trajectory over the whole episode to count all the state visits.
             while True:  # for every time-step, do
                 # self.env.render()
-                selected_action = self.policy.step(observation)
+                selected_action = self.policy.step(observation, self.Q)
                 observation, reward, done, _ = self.env.step(action=selected_action)
                 episode_observations[observation] += 1
                 episode_observations_and_actions[(observation, selected_action)] += 1
                 if done:
                     break
             # Still we apply the same final episode reward to all observations in this episode
-            self.__incremental_update(episode_observations, reward)
             self.__policy_update(episode_observations_and_actions, reward)
         return self
 
     def __policy_update(self, observations_and_actions, reward):
         for (obs, action) in observations_and_actions:
             # N(s,a) <- N(s,a) + 1
-            self.policy.N_sa[(obs, action)] += 1
-            self.policy.N_s[obs] += 1
-            # Q(s,a) <- Q(s,a) + [G - Q(s,a)] / N(s,a)
-            # We use a dict-to-list of actions for easier step-processing
-            if action in self.policy.Q[obs]:
-                self.policy.Q[obs][action] += np.true_divide(reward - self.policy.Q[obs][action],
-                                                             self.policy.N_sa[(obs, action)])
-            else:
-                self.policy.Q[obs][action] = reward
+            self.N_sa[(obs, action)] += 1
+            # alpha_t = 1/N(s_t; a_t)
+            alpha = np.true_divide(1, self.N_sa[(obs, action)])
+            # Q(s,a) <- Q(s,a) + alpha * [R - Q(s,a)]
+            self.Q[obs][action] += alpha * (reward - self.q_value(obs, action))
 
-    def __incremental_update(self, epoch_observations, reward):
-        """
-            Updates the value function.
-        """
-        for state in epoch_observations:
-            # Increment the total return after the episode for each visited state: S(s_t) = S(s_t) + G_t
-            # where G_t is the total return over all episodes up to episode t.
-            self.state_visits[state] += epoch_observations[state]
-            self.state_returns[state] += reward
-            # Update the value function for each visited state incrementally: V(s_t) = V(s_t) + alpha (G_t - V(s_t) )
-            # where the update is the *weighted error term* between the true return and the estimated return.
-            alpha = np.true_divide(1, self.state_visits[state])  # alpha_t = 1/N(s_t; a_t)
-            self.value_fn[state] += alpha * (self.state_returns[state] - self.value_fn[state])
-
-    def action_probability(self, observation):
-        """
-            We use this method here to return the estimated value instead of an action.
-            Still, the action to be taken could base on the value-function given the observation.
-
-            :param observation: a tuple of (dealer, player) score
-            :return: the estimated value
-        """
-        if observation not in self.value_fn:
+    def q_value(self, observation, action):
+        if observation not in self.Q:
             return 0.0
-        # The 'naive' value function would be the mean reward over all visits:
-        # V(s) = S(s) / N(s) (total reward divided by total visits)
-        return self.value_fn[observation]
+        # We use a dict-to-list of actions for easier step-processing
+        if action not in self.Q[observation]:
+            return 0.0  # We initialize everything with zero
+        return self.Q[observation][action]
