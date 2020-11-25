@@ -1,6 +1,7 @@
 import unittest
 
-from easy.monte import MonteCarloPolicyEvaluation, Stick20ActionPolicy, RandomActionPolicy, EpsilonGreedyActionPolicy
+from easy.monte import MonteCarloPolicyEvaluation
+from easy.policies import Stick20ActionPolicy, RandomActionPolicy, EpsilonGreedyActionPolicy
 from easy.game import Easy21
 
 from mpl_toolkits.mplot3d import axes3d
@@ -11,26 +12,26 @@ import matplotlib.ticker as plticker
 
 class MyTestCase(unittest.TestCase):
 
-    def test_epsilon_greedy_policy(self):
+    def test_epsilon_greedy_policy_1mio(self):
         game = Easy21()
-        policy = EpsilonGreedyActionPolicy(game.observation_space, game.action_space)
+        policy = EpsilonGreedyActionPolicy(game.action_space)
         self.__learn_and_plot(game, policy, time_steps=1_000_000)
 
     def test_epsilon_greedy_policy(self):
         game = Easy21()
-        policy = EpsilonGreedyActionPolicy(game.observation_space, game.action_space)
+        policy = EpsilonGreedyActionPolicy(game.action_space)
         for time_steps in [1_000, 10_000, 100_000]:
             self.__learn_and_plot(game, policy, time_steps)
 
     def test_random_policy(self):
         game = Easy21()
-        policy = RandomActionPolicy(game.observation_space, game.action_space)
+        policy = RandomActionPolicy(game.action_space)
         for time_steps in [1_000, 10_000, 100_000]:
             self.__learn_and_plot(game, policy, time_steps)
 
     def test_stick_20_policy(self):
         game = Easy21()
-        policy = Stick20ActionPolicy(game.observation_space, game.action_space)
+        policy = Stick20ActionPolicy(game.action_space)
         for time_steps in [1_000, 10_000, 100_000]:
             self.__learn_and_plot(game, policy, time_steps)
 
@@ -44,7 +45,7 @@ class MyTestCase(unittest.TestCase):
         V = np.zeros(shape=(len(dealer_scores), len(player_scores)))
         for d_idx, dealer_score in enumerate(dealer_scores):
             for p_idx, player_score in enumerate(player_scores):
-                value = mc.action_probability(observation=(dealer_score, player_score))
+                value = mc.value(observation=(dealer_score, player_score))
                 V[d_idx][p_idx] = value
 
         D, P = np.meshgrid(dealer_scores, player_scores)

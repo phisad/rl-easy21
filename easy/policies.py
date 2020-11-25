@@ -1,27 +1,23 @@
 import collections
-from stable_baselines.common import policies
 import numpy as np
 
 
-class EpsilonGreedyActionPolicy(policies.BasePolicy):
+class EpsilonGreedyActionPolicy(object):
+    """
+        Might implement stable_baselines.common.policies.BasePolicy
+    """
 
-    def __init__(self, observation_space, action_space):
-        super(EpsilonGreedyActionPolicy, self).__init__(sess=None, ob_space=observation_space, ac_space=action_space,
-                                                        n_env=1, n_steps=1, n_batch=1, reuse=False, scale=False)
+    def __init__(self, action_space):
         self.action_space = action_space
         self.action_space_range = np.arange(action_space.n)
-        self.observation_space = observation_space
-        # Hold estimated total return for state-action pairs
-        self.Q = collections.defaultdict(dict)
-        # Hold counts for state-action pairs
-        self.N_sa = collections.defaultdict(int)
         # Hold counts for states
         self.N_s = collections.defaultdict(int)
         self.N_0 = 100
 
-    def step(self, obs, state=None, mask=None):
+    def step(self, obs, q=None):
         # estimated total returns by actions taken from this state
-        state_actions = self.Q[obs]
+        state_actions = q[obs]
+        self.N_s[obs] += 1
         if not state_actions:  # not seen before, all actions have equal change
             selected_action = np.random.choice(self.action_space_range)
         else:
@@ -35,44 +31,29 @@ class EpsilonGreedyActionPolicy(policies.BasePolicy):
             selected_action = np.random.choice(self.action_space_range, p=epsilon_greedy_probs)
         return selected_action
 
-    def proba_step(self, obs, state=None, mask=None):
-        raise NotImplementedError()
 
+class Stick20ActionPolicy(object):
+    """
+        Might implement stable_baselines.common.policies.BasePolicy
+    """
 
-class Stick20ActionPolicy(policies.BasePolicy):
-
-    def __init__(self, observation_space, action_space):
-        super(Stick20ActionPolicy, self).__init__(sess=None, ob_space=observation_space, ac_space=action_space,
-                                                  n_env=1, n_steps=1, n_batch=1, reuse=False, scale=False)
+    def __init__(self, action_space):
         self.action_space = action_space
-        self.observation_space = observation_space
 
-    def step(self, obs, state=None, mask=None):
+    def step(self, obs, q=None):
         player_score = obs[1]
         if player_score >= 20:
             return 0  # STICK
         return 1  # HIT
 
-    def proba_step(self, obs, state=None, mask=None):
-        raise NotImplementedError()
 
-    def update(self, observations_and_actions, reward):
-        pass
+class RandomActionPolicy(object):
+    """
+        Might implement stable_baselines.common.policies.BasePolicy
+    """
 
-
-class RandomActionPolicy(policies.BasePolicy):
-
-    def __init__(self, observation_space, action_space):
-        super(RandomActionPolicy, self).__init__(sess=None, ob_space=observation_space, ac_space=action_space,
-                                                 n_env=1, n_steps=1, n_batch=1, reuse=False, scale=False)
+    def __init__(self, action_space):
         self.action_space = action_space
-        self.observation_space = observation_space
 
-    def step(self, obs, state=None, mask=None):
+    def step(self, obs, q=None):
         return self.action_space.sample()
-
-    def proba_step(self, obs, state=None, mask=None):
-        raise NotImplementedError()
-
-    def update(self, observations_and_actions, reward):
-        pass
